@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #110e0c;
+  }
+}
+
+/* Efeito de Pergaminho Queimado/Envelhecido */
+.parchment-paper {
+  background-color: #f2e6cf;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(229,212,179,0.3) 100%),
+                    repeating-linear-gradient(rgba(0,0,0,0.01) 0px, rgba(0,0,0,0.01) 1px, transparent 1px, transparent 2px);
+  color: #1c140e;
+  border: 1px solid #c5a028;
+  border-radius: 4px;
+  box-shadow: inset 0 0 40px rgba(139, 115, 85, 0.35), 0 10px 20px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+/* Cantos Ornamentados para Paineis */
+.gothic-border {
+  border: 2px solid #8c6d31;
+  position: relative;
+  background-clip: padding-box;
+}
+
+.gothic-border::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border: 1px solid #d4af37;
+  pointer-events: none;
+  border-radius: 2px;
+}
+
+/* Cantoneiras decoradas nos 4 cantos */
+.corner-ornament {
+  position: relative;
+}
+.corner-ornament::after {
+  content: "♦";
+  position: absolute;
+  color: #d4af37;
+  font-size: 10px;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+}
+.corner-ornament-tl::after { top: 2px; left: 4px; }
+.corner-ornament-tr::after { top: 2px; right: 4px; }
+.corner-ornament-bl::after { bottom: 2px; left: 4px; }
+.corner-ornament-br::after { bottom: 2px; right: 4px; }
+
+/* Micro-Animação ao passar o mouse em botões Rúnicos */
+.rune-button {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #8c6d31;
+  background-color: #1a1512;
+  color: #d4af37;
+  font-family: 'Cinzel', serif;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1rem;
+  border-radius: 2px;
+}
+
+.rune-button:hover:not(:disabled) {
+  background-color: #d4af37;
+  color: #110e0c;
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.7);
+  transform: translateY(-1px);
+  border-color: #f2e6cf;
+}
+
+.rune-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Input customizado estilo pergaminho escuro */
+.grimorio-input {
+  background-color: #2d241e;
+  border: 1px solid #8c6d31;
+  color: #f2e6cf;
+  font-family: 'EB Garamond', serif;
+  padding: 0.5rem;
+  border-radius: 2px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.grimorio-input:focus {
+  border-color: #d4af37;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+}
+
+/* Estilo de rolador de dados atrativo */
+.die-clickable {
+  cursor: pointer;
+  transition: transform 0.2s, text-shadow 0.2s, box-shadow 0.2s;
+}
+
+.die-clickable:hover {
+  transform: scale(1.05);
+  text-shadow: 0 0 8px #d4af37;
+  box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.2);
+}
+
+.die-clickable:active {
+  transform: scale(0.95);
+}
+
+/* Custom scrollbars for grimorio panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #110e0c;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8c6d31;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+}
