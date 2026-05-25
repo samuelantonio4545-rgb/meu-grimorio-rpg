@@ -134,3 +134,16 @@ app.delete('/api/homebrew/:id', (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Grimório rodando na porta ${PORT}`));
+cat >> server.js << 'EOF'
+
+// ── CONTEÚDO EM PORTUGUÊS (Brasil) ──
+app.get('/api/pt/classes', async (req, res) => {
+  const { data } = await axios.get('https://api.open5e.com/v1/classes/?format=json&limit=50');
+  res.json(data);
+});
+
+app.get('/api/pt/racas', async (req, res) => {
+  const { data } = await axios.get('https://api.open5e.com/v1/races/?format=json&limit=50');
+  res.json(data);
+});
+EOF

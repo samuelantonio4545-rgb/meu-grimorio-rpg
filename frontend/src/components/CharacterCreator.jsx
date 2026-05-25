@@ -1,729 +1,302 @@
-import React, { useState } from 'react';
-import { Shield, Sparkles, User, Sword, BookOpen, Compass, ArrowLeft, ArrowRight, Dices, Lock, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Compass, ArrowLeft, ArrowRight, Dices, Lock, Sparkles } from 'lucide-react';
 
-const RACES = {
-  elf: {
-    name: 'Elfo',
-    description: 'Criaturas mágicas com afinidade sobrenatural, graça e longa expectativa de vida.',
-    traits: ['Visão no Escuro (60ft)', 'Ancestralidade Feérica (Resistência a Encanto/Imunidade a Sono)', 'Sentidos Aguçados (Proficiência em Percepção)'],
-    modifiers: { dex: 2 },
-    subraces: {
-      high_elf: { name: 'Alto Elfo', description: 'Estudiosos de magia arcana e arquearia.', modifiers: { int: 1 }, extraTraits: ['Truque de Mago Adicional'] },
-      wood_elf: { name: 'Elfo da Floresta', description: 'Rápidos, furtivos e conectados com as matas.', modifiers: { wis: 1 }, extraTraits: ['Pés Ligeiros (Velocidade 35ft)', 'Máscara da Natureza'] }
-    }
-  },
-  dwarf: {
-    name: 'Anão',
-    description: 'Guerreiros e ferreiros robustos das profundezas, conhecidos por sua resiliência.',
-    traits: ['Visão no Escuro (60ft)', 'Resiliência Anã (Resistência a Veneno)', 'Treinamento de Combate Anão'],
-    modifiers: { con: 2 },
-    subraces: {
-      hill_dwarf: { name: 'Anão da Colina', description: 'Possuem sentidos aguçados e vitalidade divina.', modifiers: { wis: 1 }, extraTraits: ['Robustez Anã (+1 PV por nível)'] },
-      mountain_dwarf: { name: 'Anão da Montanha', description: 'Fortes e acostumados a armaduras pesadas.', modifiers: { str: 2 }, extraTraits: ['Treinamento com Armaduras Leves/Médias'] }
-    }
-  },
-  human: {
-    name: 'Humano',
-    description: 'A mais adaptável, ambiciosa e diversa das raças mortais.',
-    traits: ['Versatilidade Natural'],
-    modifiers: { str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 },
-    subraces: null
-  }
-};
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const CLASSES = {
-  fighter: {
-    name: 'Guerreiro',
-    hitDie: 10,
-    primaryAbility: 'str',
-    skillsToSelect: 2,
-    availableSkills: ['Atletismo', 'Acrobacia', 'Sobrevivência', 'Intimidação', 'História', 'Percepção'],
-    features: ['Estilo de Combate', 'Retomar o Fôlego (Second Wind)'],
-    spellcasting: null
-  },
-  wizard: {
-    name: 'Mago',
-    hitDie: 6,
-    primaryAbility: 'int',
-    skillsToSelect: 2,
-    availableSkills: ['Arcanismo', 'História', 'Investigação', 'Religião', 'Perspicácia', 'Medicina'],
-    features: ['Recuperação Arcana', 'Conjuração'],
-    spellcasting: {
-      ability: 'int',
-      cantripsSelected: 3,
-      spellsSelected: 2,
-      cantrips: ['Prestidigitação', 'Raio de Gelo', 'Mãos Flamejantes (Truque)', 'Toque Chocante'],
-      level1Spells: ['Mísseis Mágicos', 'Armadura Arcana', 'Escudo Bruxo', 'Deteção de Magia']
-    }
-  },
-  cleric: {
-    name: 'Clérigo',
-    hitDie: 8,
-    primaryAbility: 'wis',
-    skillsToSelect: 2,
-    availableSkills: ['História', 'Medicina', 'Perspicácia', 'Religião', 'Persuasão'],
-    features: ['Domínio Divino (Subclasse)', 'Conjuração'],
-    spellcasting: {
-      ability: 'wis',
-      cantripsSelected: 3,
-      spellsSelected: 2,
-      cantrips: ['Chama Sagrada', 'Orientação', 'Taumaturgia', 'Poupar os Moribundos'],
-      level1Spells: ['Curar Ferimentos', 'Bênção', 'Escudo da Fé', 'Palavra de Cura']
-    }
-  }
-};
+const STAT_NAMES = { str:'Força', dex:'Destreza', con:'Constituição', int:'Inteligência', wis:'Sabedoria', cha:'Carisma' };
 
 const BACKGROUNDS = {
-  acolyte: { name: 'Acólito', skills: ['Intuição (Perspicácia)', 'Religião'], feature: 'Abrigo do Fiel' },
-  criminal: { name: 'Criminoso', skills: ['Enganação', 'Furtividade'], feature: 'Contato Criminoso' },
-  folk_hero: { name: 'Herói do Povo', skills: ['Adestrar Animais', 'Sobrevivência'], feature: 'Hospitalidade Rústica' }
+  acolyte:    { name:'Acólito',         skills:['Perspicácia','Religião'],          feature:'Abrigo do Fiel' },
+  criminal:   { name:'Criminoso',       skills:['Enganação','Furtividade'],          feature:'Contato Criminoso' },
+  folk_hero:  { name:'Herói do Povo',   skills:['Adestrar Animais','Sobrevivência'], feature:'Hospitalidade Rústica' },
+  noble:      { name:'Nobre',           skills:['História','Persuasão'],             feature:'Privilégio de Posição' },
+  sage:       { name:'Sábio',           skills:['Arcanismo','História'],             feature:'Pesquisador' },
+  soldier:    { name:'Soldado',         skills:['Atletismo','Intimidação'],          feature:'Patente Militar' },
+  outlander:  { name:'Forasteiro',      skills:['Atletismo','Sobrevivência'],        feature:'Andarilho' },
+  entertainer:{ name:'Artista',         skills:['Acrobacia','Performance'],          feature:'Por Aclamação Popular' },
+  guild_artisan:{ name:'Artesão de Guilda', skills:['Intuição','Persuasão'],        feature:'Membro de Guilda' },
+  hermit:     { name:'Eremita',         skills:['Medicina','Religião'],              feature:'Descoberta' },
+  sailor:     { name:'Marinheiro',      skills:['Atletismo','Percepção'],            feature:'Passagem Segura' },
+  charlatan:  { name:'Charlatão',       skills:['Enganação','Prestidigitação'],      feature:'Identidade Falsa' },
 };
 
-const XANATHAR_LIFE_EVENTS = [
+const XANATHAR_EVENTS = [
   "Você escapou por pouco de um ataque de Goblins quando criança.",
   "Um mago excêntrico lhe deu um livro em branco que brilha à meia-noite.",
   "Você foi abençoado por um clérigo viajante após realizar uma boa ação.",
   "Você perdeu tudo em uma aposta arriscada com um nobre local.",
-  "Você encontrou uma adaga enferrujada de herança de família em um poço antigo."
+  "Você encontrou uma adaga enferrujada de herança de família em um poço antigo.",
+  "Uma bruxa lhe fez uma profecia enigmática quando você tinha 7 anos.",
+  "Você sobreviveu a um naufrágio que matou toda a sua tripulação.",
+  "Um dragão passou sobre sua vila quando você era jovem e mudou sua vida para sempre.",
+  "Você foi aprendiz de um aventureiro famoso por três anos.",
+  "Uma cicatriz misteriosa apareceu em seu corpo sem explicação.",
 ];
+
+const getPointCost = v => v <= 8 ? 0 : v <= 13 ? v-8 : v === 14 ? 7 : 9;
 
 export default function CharacterCreator({ onSave, onCancel }) {
   const [step, setStep] = useState(1);
-  const [selectedRace, setSelectedRace] = useState('elf');
-  const [selectedSubrace, setSelectedSubrace] = useState('high_elf');
-  const [selectedClass, setSelectedClass] = useState('fighter');
-  const [selectedSkills, setSelectedSkills] = useState([]);
-  
-  // Tasha's customization toggles & score allocations
-  const [tashaEnabled, setTashaEnabled] = useState(false);
+  const [races, setRaces]   = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [loadingRaces, setLoadingRaces]   = useState(true);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+
+  const [selectedRace, setSelectedRace]       = useState(null);
+  const [selectedSubrace, setSelectedSubrace] = useState(null);
+  const [selectedClass, setSelectedClass]     = useState(null);
+  const [selectedSkills, setSelectedSkills]   = useState([]);
+  const [selectedBackground, setSelectedBackground] = useState('acolyte');
+  const [xanatharStory, setXanatharStory] = useState(null);
+  const [tashaEnabled, setTashaEnabled]   = useState(false);
   const [tashaPlus2, setTashaPlus2] = useState('str');
   const [tashaPlus1, setTashaPlus1] = useState('dex');
-
-  // Point Buy stats state (default 8)
-  const [baseStats, setBaseStats] = useState({
-    str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8
-  });
-  
-  // Background & Xanathar states
-  const [selectedBackground, setSelectedBackground] = useState('acolyte');
-  const [xanatharStory, setXanatharStory] = useState("Clique no dado para sortear seu acontecimento histórico...");
-  const [traits, setTraits] = useState({ bond: '', flaw: '', ideal: '', personality: '' });
-
-  // Spells Selected
-  const [spells, setSpells] = useState([]);
-  const [cantrips, setCantrips] = useState([]);
-
-  // Character Metadata
-  const [charName, setCharName] = useState('');
+  const [baseStats, setBaseStats] = useState({ str:8, dex:8, con:8, int:8, wis:8, cha:8 });
+  const [charName, setCharName]   = useState('');
   const [portraitUrl, setPortraitUrl] = useState('');
 
-  // Point Buy Helper functions
-  const getPointCost = (value) => {
-    if (value <= 8) return 0;
-    if (value <= 13) return value - 8;
-    if (value === 14) return 7;
-    if (value === 15) return 9;
-    return 9;
-  };
+  useEffect(() => {
+    fetch(`${API}/api/races`).then(r=>r.json()).then(d=>{
+      setRaces(d.results || []);
+      setLoadingRaces(false);
+    }).catch(()=>setLoadingRaces(false));
+    fetch(`${API}/api/classes`).then(r=>r.json()).then(d=>{
+      setClasses(d.results || []);
+      setLoadingClasses(false);
+    }).catch(()=>setLoadingClasses(false));
+  }, []);
 
-  const getPointsRemaining = () => {
-    const spent = Object.values(baseStats).reduce((acc, val) => acc + getPointCost(val), 0);
-    return 27 - spent;
-  };
+  const pointsRemaining = () => 27 - Object.values(baseStats).reduce((a,v)=>a+getPointCost(v),0);
 
   const adjustStat = (stat, amount) => {
-    const current = baseStats[stat];
-    const next = current + amount;
+    const next = baseStats[stat] + amount;
     if (next < 8 || next > 15) return;
-    
-    // Check points
-    const costCurrent = getPointCost(current);
-    const costNext = getPointCost(next);
-    const diff = costNext - costCurrent;
-    
-    if (getPointsRemaining() >= diff) {
-      setBaseStats(prev => ({ ...prev, [stat]: next }));
-    }
+    const diff = getPointCost(next) - getPointCost(baseStats[stat]);
+    if (pointsRemaining() >= diff) setBaseStats(p=>({...p,[stat]:next}));
   };
 
-  // Calculating racial modifiers or Tasha overrides
-  const getStatBonus = (stat) => {
-    if (tashaEnabled) {
-      let bonus = 0;
-      if (tashaPlus2 === stat) bonus += 2;
-      if (tashaPlus1 === stat) bonus += 1;
-      return bonus;
-    }
-
-    let bonus = 0;
-    const raceConfig = RACES[selectedRace];
-    if (raceConfig.modifiers[stat]) {
-      bonus += raceConfig.modifiers[stat];
-    }
-    if (raceConfig.subraces && selectedSubrace && raceConfig.subraces[selectedSubrace]) {
-      const subraceConfig = raceConfig.subraces[selectedSubrace];
-      if (subraceConfig.modifiers[stat]) {
-        bonus += subraceConfig.modifiers[stat];
-      }
-    }
-    return bonus;
+  const getBonus = stat => {
+    if (tashaEnabled) return (tashaPlus2===stat?2:0)+(tashaPlus1===stat?1:0);
+    return 0;
   };
 
-  const getTotalStat = (stat) => {
-    return baseStats[stat] + getStatBonus(stat);
+  const getTotal = stat => baseStats[stat] + getBonus(stat);
+  const getMod   = stat => Math.floor((getTotal(stat)-10)/2);
+
+  const STEPS = ['Raça','Classe','Atributos','Antecedente','Finalizar'];
+
+  const next = () => {
+    if (step===1 && !selectedRace) return alert('Selecione uma raça.');
+    if (step===2 && !selectedClass) return alert('Selecione uma classe.');
+    if (step===3 && pointsRemaining()!==0) return alert('Distribua todos os 27 pontos.');
+    if (step===5) { if(!charName.trim()) return alert('Dê um nome ao personagem.'); return saveChar(); }
+    setStep(p=>p+1);
   };
 
-  const handleNextStep = () => {
-    if (step === 1) {
-      const raceConfig = RACES[selectedRace];
-      if (raceConfig.subraces && !selectedSubrace) {
-        alert('Por favor, selecione uma subraça.');
-        return;
-      }
-    }
-    if (step === 2) {
-      const classConfig = CLASSES[selectedClass];
-      if (selectedSkills.length !== classConfig.skillsToSelect) {
-        alert(`Selecione exatamente ${classConfig.skillsToSelect} perícias de classe.`);
-        return;
-      }
-    }
-    if (step === 3) {
-      if (getPointsRemaining() !== 0) {
-        alert('Por favor, distribua todos os 27 pontos de atributos antes de prosseguir.');
-        return;
-      }
-      if (tashaEnabled && tashaPlus2 === tashaPlus1) {
-        alert('Os bônus de +2 e +1 da personalização da Tasha devem ser alocados em atributos diferentes.');
-        return;
-      }
-    }
-    if (step === 6) {
-      if (!charName.trim()) {
-        alert('Por favor, dê um nome ao seu herói para gravá-lo no grimório.');
-        return;
-      }
-      saveCharacter();
-      return;
-    }
-    setStep(prev => prev + 1);
+  const saveChar = () => {
+    onSave({
+      id: 'char_'+Date.now(),
+      meta: { name:charName, level:1, race:selectedRace?.name||'', class:selectedClass?.name||'', background:BACKGROUNDS[selectedBackground].name, portraitUrl },
+      attributes: { strength:getTotal('str'), dexterity:getTotal('dex'), constitution:getTotal('con'), intelligence:getTotal('int'), wisdom:getTotal('wis'), charisma:getTotal('cha') },
+      hp: { max: 8+getMod('con'), current: 8+getMod('con'), temporary:0 },
+      notes: xanatharStory ? `Evento Xanathar: ${xanatharStory}` : ''
+    });
   };
-
-  const handlePrevStep = () => {
-    if (step > 1) setStep(prev => prev - 1);
-  };
-
-  const handleSkillToggle = (skill) => {
-    const limit = CLASSES[selectedClass].skillsToSelect;
-    if (selectedSkills.includes(skill)) {
-      setSelectedSkills(prev => prev.filter(s => s !== skill));
-    } else if (selectedSkills.length < limit) {
-      setSelectedSkills(prev => [...prev, skill]);
-    }
-  };
-
-  const handleSpellToggle = (spell, isCantrip) => {
-    const list = isCantrip ? cantrips : spells;
-    const setter = isCantrip ? setCantrips : setSpells;
-    const limit = isCantrip ? CLASSES[selectedClass].spellcasting.cantripsSelected : CLASSES[selectedClass].spellcasting.spellsSelected;
-
-    if (list.includes(spell)) {
-      setter(prev => prev.filter(s => s !== spell));
-    } else if (list.length < limit) {
-      setter(prev => [...prev, spell]);
-    }
-  };
-
-  const rollXanatharEvent = () => {
-    const randomIdx = Math.floor(Math.random() * XANATHAR_LIFE_EVENTS.length);
-    setXanatharStory(XANATHAR_LIFE_EVENTS[randomIdx]);
-  };
-
-  // Compile full JSON structure based on character_schema
-  const saveCharacter = () => {
-    const finalId = 'char_' + Date.now();
-    const classConfig = CLASSES[selectedClass];
-    const raceConfig = RACES[selectedRace];
-    const subConfig = raceConfig.subraces ? raceConfig.subraces[selectedSubrace] : null;
-
-    // Create DND5e Character JSON matching JSON Schema
-    const characterSheet = {
-      id: finalId,
-      meta: {
-        name: charName,
-        level: 1,
-        experience: 0,
-        class: classConfig.name,
-        subclass: subConfig ? subConfig.name : '',
-        race: raceConfig.name,
-        subrace: subConfig ? subConfig.name : '',
-        background: BACKGROUNDS[selectedBackground].name,
-        alignment: 'Neutro',
-        portraitUrl: portraitUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80'
-      },
-      attributes: {
-        strength: getTotalStat('str'),
-        dexterity: getTotalStat('dex'),
-        constitution: getTotalStat('con'),
-        intelligence: getTotalStat('int'),
-        wisdom: getTotalStat('wis'),
-        charisma: getTotalStat('cha'),
-        tashaCustomization: {
-          enabled: tashaEnabled,
-          abilityScoreSwaps: tashaEnabled ? [
-            { from: selectedRace === 'elf' ? 'dex' : 'con', to: tashaPlus2, value: 2 },
-            { from: 'other', to: tashaPlus1, value: 1 }
-          ] : [],
-          customLanguages: [],
-          customProficiencies: []
-        }
-      },
-      hp: {
-        max: classConfig.hitDie + Math.floor((getTotalStat('con') - 10) / 2),
-        current: classConfig.hitDie + Math.floor((getTotalStat('con') - 10) / 2),
-        temporary: 0,
-        deathSaves: { successes: 0, failures: 0 }
-      },
-      skills: selectedSkills.reduce((acc, skill) => {
-        acc[skill.toLowerCase()] = { proficient: true, expertise: false, customModifier: 0 };
-        return acc;
-      }, {}),
-      savingThrows: {
-        str: { proficient: selectedClass === 'fighter', customModifier: 0 },
-        dex: { proficient: false, customModifier: 0 },
-        con: { proficient: selectedClass === 'fighter' || selectedClass === 'cleric', customModifier: 0 },
-        int: { proficient: selectedClass === 'wizard', customModifier: 0 },
-        wis: { proficient: selectedClass === 'wizard' || selectedClass === 'cleric', customModifier: 0 },
-        cha: { proficient: false, customModifier: 0 }
-      },
-      inventory: [
-        { id: 'inv_1', name: 'Armadura de Couro', quantity: 1, weight: 10, isEquipped: true, description: 'Armadura básica' },
-        { id: 'inv_2', name: 'Espada Curta', quantity: 1, weight: 3, isEquipped: true, description: 'Dano: 1d6 perfurante' }
-      ],
-      spells: {
-        spellcastingAbility: classConfig.spellcasting ? classConfig.spellcasting.ability : 'none',
-        spellSaveDC: classConfig.spellcasting ? (8 + 2 + Math.floor((getTotalStat(classConfig.spellcasting.ability) - 10) / 2)) : 0,
-        spellAttackBonus: classConfig.spellcasting ? (2 + Math.floor((getTotalStat(classConfig.spellcasting.ability) - 10) / 2)) : 0,
-        slots: {
-          level_1: { max: classConfig.spellcasting ? 2 : 0, current: classConfig.spellcasting ? 2 : 0 }
-        },
-        list: [
-          ...cantrips.map(c => ({ id: 'cant_' + c, name: c, level: 0, school: 'Evocação', castingTime: '1 Ação', range: '60ft', components: 'V, S', duration: 'Instantâneo', concentration: false, description: 'Truque básico', prepared: true })),
-          ...spells.map(s => ({ id: 'spell_' + s, name: s, level: 1, school: 'Abjuração', castingTime: '1 Ação', range: 'Toque', components: 'V, S, M', duration: '1 Hora', concentration: true, description: 'Magia de 1º Círculo', prepared: true }))
-        ]
-      },
-      conditions: {
-        blinded: false, charmed: false, deafened: false, frightened: false, grappled: false,
-        incapacitated: false, invisible: false, paralyzed: false, petrified: false, poisoned: false,
-        prone: false, restrained: false, stunned: false, unconscious: false, exhaustion: 0
-      },
-      restState: {
-        hitDiceTotal: { [classConfig.hitDie]: 1 },
-        hitDiceRemaining: { [classConfig.hitDie]: 1 },
-        customResources: []
-      },
-      concentration: { isConcentrating: false, spellId: null, spellName: null },
-      notes: `História do Xanathar: ${xanatharStory}\nTraços: Vínculo: ${traits.bond || 'Nenhum'}`
-    };
-
-    onSave(characterSheet);
-  };
-
-  const stepsLabels = ['Raça', 'Classe', 'Atributos & TCoE', 'Antecedente', 'Magias', 'Grimório'];
 
   return (
-    <div className="w-full max-w-5xl bg-grimorio-panel border-2 border-grimorio-gold/60 rounded shadow-2xl flex flex-col md:flex-row min-h-[600px] overflow-hidden text-grimorio-parchment-light relative z-20">
+    <div className="fixed inset-0 bg-[#0d0a08] flex flex-col md:flex-row overflow-hidden">
       
-      {/* Sidebar - BG3 Navigation */}
-      <div className="w-full md:w-64 bg-[#14100d] border-b md:border-b-0 md:border-r border-grimorio-gold-dark/30 p-4 flex flex-col justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-6 pb-2 border-b border-grimorio-gold-dark/20">
-            <Compass className="w-5 h-5 text-grimorio-gold" />
-            <h4 className="font-cinzel text-sm uppercase text-grimorio-gold">Criação</h4>
-          </div>
-          
-          <ul className="space-y-2">
-            {stepsLabels.map((label, idx) => {
-              const stepNum = idx + 1;
-              const isActive = step === stepNum;
-              const isPassed = step > stepNum;
-              return (
-                <li key={idx} className={`flex items-center gap-3 p-2 text-sm font-cinzel tracking-wider rounded ${isActive ? 'bg-grimorio-gold/10 text-grimorio-gold border border-grimorio-gold/20 shadow-rune-glow' : 'text-grimorio-parchment-light/50'}`}>
-                  <span className={`w-5 h-5 flex items-center justify-center text-xs border rounded-full ${isActive ? 'border-grimorio-gold text-grimorio-gold' : isPassed ? 'border-grimorio-gold-dark text-grimorio-gold-dark' : 'border-grimorio-parchment-light/30'}`}>
-                    {stepNum}
-                  </span>
-                  <span>{label}</span>
-                  {!isActive && !isPassed && stepNum > 3 && <Lock className="w-3.5 h-3.5 ml-auto text-grimorio-parchment-light/20" />}
-                </li>
-              );
-            })}
-          </ul>
+      {/* Sidebar */}
+      <div className="w-full md:w-56 bg-[#14100d] border-b md:border-b-0 md:border-r border-yellow-900/40 flex md:flex-col items-center md:items-start p-3 md:p-5 gap-2 md:gap-3 overflow-x-auto md:overflow-x-visible">
+        <div className="flex items-center gap-2 mb-0 md:mb-4 shrink-0">
+          <Compass className="w-4 h-4 text-yellow-600" />
+          <span className="font-cinzel text-xs text-yellow-600 uppercase hidden md:block">Criação</span>
         </div>
-        
-        <button onClick={onCancel} className="mt-8 text-xs text-grimorio-gold-dark hover:text-grimorio-gold transition-colors font-cinzel uppercase tracking-widest text-center">
-          Abandonar Criação
-        </button>
+        {STEPS.map((label,i) => {
+          const s = i+1;
+          const active = step===s, done = step>s;
+          return (
+            <div key={i} className={`flex items-center gap-2 px-3 py-2 rounded text-xs font-cinzel shrink-0 ${active?'bg-yellow-900/30 text-yellow-500 border border-yellow-700/40':'text-yellow-900/60'}`}>
+              <span className={`w-5 h-5 flex items-center justify-center rounded-full border text-xs ${active?'border-yellow-500 text-yellow-500':done?'border-yellow-800 text-yellow-800':'border-yellow-900/30'}`}>{s}</span>
+              <span className="hidden md:block">{label}</span>
+              {!active && !done && s>2 && <Lock className="w-3 h-3 ml-auto hidden md:block text-yellow-900/30"/>}
+            </div>
+          );
+        })}
+        <button onClick={onCancel} className="mt-auto text-xs text-yellow-900/50 hover:text-yellow-700 font-cinzel hidden md:block">Cancelar</button>
       </div>
 
-      {/* Main Form Area */}
-      <div className="flex-grow parchment-paper p-6 md:p-8 flex flex-col justify-between text-grimorio-panel min-h-[500px]">
-        <div>
-          {/* STEP 1: RACE */}
-          {step === 1 && (
-            <div>
-              <h2 className="font-cinzel text-2xl text-grimorio-gold-dark mb-2">Selecione sua Linhagem</h2>
-              <p className="font-garamond italic text-sm text-grimorio-panel/70 mb-6">A sua origem define suas habilidades naturais, feições e cultura.</p>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                {Object.keys(RACES).map(raceKey => (
-                  <div 
-                    key={raceKey}
-                    onClick={() => { setSelectedRace(raceKey); setSelectedSubrace(raceKey === 'human' ? null : raceKey === 'elf' ? 'high_elf' : 'hill_dwarf'); }}
-                    className={`p-4 border cursor-pointer rounded transition-all ${selectedRace === raceKey ? 'bg-grimorio-gold/20 border-grimorio-gold shadow-md' : 'bg-[#fffcf4]/80 border-grimorio-gold-dark/30 hover:bg-[#fff9ea]'}`}
-                  >
-                    <h3 className="font-cinzel text-lg text-grimorio-gold-dark">{RACES[raceKey].name}</h3>
-                    <p className="text-xs font-garamond mt-1 leading-relaxed">{RACES[raceKey].description}</p>
-                  </div>
-                ))}
-              </div>
+      {/* Main */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8" style={{background:'#f5f0e8'}}>
 
-              {RACES[selectedRace].subraces && (
-                <div className="mt-6 border-t border-grimorio-gold-dark/20 pt-4">
-                  <h4 className="font-cinzel text-sm text-grimorio-gold-dark mb-3">Escolha uma Subraça</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {Object.keys(RACES[selectedRace].subraces).map(subKey => {
-                      const sub = RACES[selectedRace].subraces[subKey];
-                      return (
-                        <div 
-                          key={subKey}
-                          onClick={() => setSelectedSubrace(subKey)}
-                          className={`p-4 border cursor-pointer rounded transition-all text-sm ${selectedSubrace === subKey ? 'bg-grimorio-gold/20 border-grimorio-gold' : 'bg-[#fffcf4]/60 border-grimorio-gold-dark/30 hover:bg-[#fff9ea]'}`}
-                        >
-                          <h5 className="font-cinzel font-bold text-grimorio-gold-dark">{sub.name}</h5>
-                          <p className="text-xs font-garamond mt-1">{sub.description}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
+          {/* STEP 1 - RAÇA */}
+          {step===1 && (
+            <div>
+              <h2 className="font-cinzel text-2xl text-yellow-800 mb-1">Selecione sua Linhagem</h2>
+              <p className="text-sm text-yellow-900/60 italic mb-6">Sua origem define habilidades naturais e cultura.</p>
+              {loadingRaces ? (
+                <div className="text-center py-12 text-yellow-800 font-cinzel">Carregando raças do grimório...</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {races.map(race => (
+                    <div key={race.index} onClick={()=>{setSelectedRace(race);setSelectedSubrace(null);}}
+                      className={`p-4 border rounded cursor-pointer transition-all ${selectedRace?.index===race.index?'bg-yellow-200 border-yellow-600 shadow-md':'bg-white/80 border-yellow-300/50 hover:bg-yellow-50'}`}>
+                      <h3 className="font-cinzel text-sm font-bold text-yellow-800">{race.name}</h3>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedRace && (
+                <div className="mt-6 p-4 bg-yellow-800 rounded border border-yellow-600/40 text-yellow-100">
+                  <h4 className="font-cinzel text-sm text-yellow-400 mb-1">✦ {selectedRace.name} selecionado</h4>
+                  <p className="text-xs opacity-70">Você pode refinar sua escolha de subraça no passo seguinte se disponível.</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* STEP 2: CLASS */}
-          {step === 2 && (
+          {/* STEP 2 - CLASSE */}
+          {step===2 && (
             <div>
-              <h2 className="font-cinzel text-2xl text-grimorio-gold-dark mb-2">Escolha sua Vocação</h2>
-              <p className="font-garamond italic text-sm text-grimorio-panel/70 mb-6">Sua classe define seu treinamento em armas, magia e papel de combate.</p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                {Object.keys(CLASSES).map(classKey => (
-                  <div 
-                    key={classKey}
-                    onClick={() => { setSelectedClass(classKey); setSelectedSkills([]); setSelectedCantrips([]); setSelectedSpells([]); }}
-                    className={`p-4 border cursor-pointer rounded transition-all ${selectedClass === classKey ? 'bg-grimorio-gold/20 border-grimorio-gold shadow-md' : 'bg-[#fffcf4]/80 border-grimorio-gold-dark/30 hover:bg-[#fff9ea]'}`}
-                  >
-                    <h3 className="font-cinzel text-lg text-grimorio-gold-dark">{CLASSES[classKey].name}</h3>
-                    <p className="text-xs font-garamond mt-1">Dado de Vida: d{CLASSES[classKey].hitDie}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 border-t border-grimorio-gold-dark/20 pt-4">
-                <h4 className="font-cinzel text-sm text-grimorio-gold-dark mb-2">
-                  Escolha Perícias de Classe (Selecione {CLASSES[selectedClass].skillsToSelect})
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {CLASSES[selectedClass].availableSkills.map(skill => {
-                    const isSel = selectedSkills.includes(skill);
-                    return (
-                      <button
-                        key={skill}
-                        onClick={() => handleSkillToggle(skill)}
-                        className={`px-3 py-1.5 border rounded text-xs font-cinzel transition-all ${isSel ? 'bg-grimorio-gold text-[#110e0c] border-grimorio-gold' : 'bg-[#fffcf4]/60 border-grimorio-gold-dark/30 hover:bg-[#fff9ea]'}`}
-                      >
-                        {skill}
-                      </button>
-                    );
-                  })}
+              <h2 className="font-cinzel text-2xl text-yellow-800 mb-1">Escolha sua Vocação</h2>
+              <p className="text-sm text-yellow-900/60 italic mb-6">Sua classe define combate, magia e papel na aventura.</p>
+              {loadingClasses ? (
+                <div className="text-center py-12 text-yellow-800 font-cinzel">Carregando classes...</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {classes.map(cls => (
+                    <div key={cls.index} onClick={()=>setSelectedClass(cls)}
+                      className={`p-4 border rounded cursor-pointer transition-all ${selectedClass?.index===cls.index?'bg-yellow-200 border-yellow-600 shadow-md':'bg-white/80 border-yellow-300/50 hover:bg-yellow-50'}`}>
+                      <h3 className="font-cinzel text-sm font-bold text-yellow-800">{cls.name}</h3>
+                      <p className="text-xs text-yellow-700/60 mt-1">Dado de Vida: d{cls.hit_die}</p>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
           )}
 
-          {/* STEP 3: STATS & TASHA */}
-          {step === 3 && (
+          {/* STEP 3 - ATRIBUTOS */}
+          {step===3 && (
             <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <div>
-                  <h2 className="font-cinzel text-2xl text-grimorio-gold-dark">Distribuição de Atributos</h2>
-                  <p className="font-garamond italic text-sm text-grimorio-panel/70">Point Buy: Gaste seus 27 pontos disponíveis de forma equilibrada.</p>
+                  <h2 className="font-cinzel text-2xl text-yellow-800">Distribuição de Atributos</h2>
+                  <p className="text-sm text-yellow-900/60 italic">Point Buy — 27 pontos disponíveis.</p>
                 </div>
-                <div className="bg-[#1a1512] text-grimorio-gold border border-grimorio-gold/30 px-4 py-2 font-cinzel rounded shadow-md text-center">
-                  Pontos Restantes: {getPointsRemaining()}
+                <div className={`px-5 py-2 rounded-full font-cinzel text-sm font-bold border ${pointsRemaining()===0?'bg-green-800 text-green-200 border-green-600':'bg-yellow-800 text-yellow-200 border-yellow-600'}`}>
+                  {pointsRemaining()} pontos restantes
                 </div>
               </div>
 
-              {/* Tasha's Customization Trigger */}
-              <div className="mb-6 bg-[#fff9ea]/50 border border-grimorio-gold-dark/20 p-4 rounded flex flex-col gap-3">
+              <div className="mb-5 bg-yellow-800/10 border border-yellow-700/30 rounded p-4">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={tashaEnabled} 
-                    onChange={(e) => setTashaEnabled(e.target.checked)} 
-                    className="accent-grimorio-gold"
-                  />
-                  <span className="font-cinzel text-xs font-bold text-grimorio-gold-dark flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Ativar Regra de Customização Rácial (Tasha - TCoE)
-                  </span>
+                  <input type="checkbox" checked={tashaEnabled} onChange={e=>setTashaEnabled(e.target.checked)} className="accent-yellow-600"/>
+                  <span className="font-cinzel text-xs font-bold text-yellow-800 flex items-center gap-1"><Sparkles className="w-3 h-3"/>Regra de Customização Racial (Tasha - TCoE)</span>
                 </label>
-                <p className="text-xs font-garamond leading-relaxed">
-                  Permite realocar o bônus de +2 e +1 da sua raça em qualquer atributo que você desejar, ao invés de usar os valores padrão da sua linhagem.
-                </p>
-                
                 {tashaEnabled && (
-                  <div className="grid grid-cols-2 gap-4 mt-2">
-                    <div>
-                      <label className="block text-xs font-cinzel text-grimorio-gold-dark mb-1">Recebe +2:</label>
-                      <select 
-                        value={tashaPlus2} 
-                        onChange={(e) => setTashaPlus2(e.target.value)}
-                        className="w-full text-xs p-1.5 bg-[#fcf8ef] border border-grimorio-gold-dark/40 rounded font-garamond"
-                      >
-                        <option value="str">Força (STR)</option>
-                        <option value="dex">Destreza (DEX)</option>
-                        <option value="con">Constituição (CON)</option>
-                        <option value="int">Inteligência (INT)</option>
-                        <option value="wis">Sabedoria (WIS)</option>
-                        <option value="cha">Carisma (CHA)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-cinzel text-grimorio-gold-dark mb-1">Recebe +1:</label>
-                      <select 
-                        value={tashaPlus1} 
-                        onChange={(e) => setTashaPlus1(e.target.value)}
-                        className="w-full text-xs p-1.5 bg-[#fcf8ef] border border-grimorio-gold-dark/40 rounded font-garamond"
-                      >
-                        <option value="str">Força (STR)</option>
-                        <option value="dex">Destreza (DEX)</option>
-                        <option value="con">Constituição (CON)</option>
-                        <option value="int">Inteligência (INT)</option>
-                        <option value="wis">Sabedoria (WIS)</option>
-                        <option value="cha">Carisma (CHA)</option>
-                      </select>
-                    </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    {[['tashaPlus2',tashaPlus2,setTashaPlus2,'+2'],['tashaPlus1',tashaPlus1,setTashaPlus1,'+1']].map(([,val,set,label])=>(
+                      <div key={label}>
+                        <p className="text-xs font-cinzel text-yellow-800 mb-1">Recebe {label}:</p>
+                        <select value={val} onChange={e=>set(e.target.value)} className="w-full text-xs p-1.5 border border-yellow-400 rounded bg-yellow-50">
+                          {Object.entries(STAT_NAMES).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+                        </select>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
 
-              {/* Point Buy Sliders/Controls */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {Object.keys(baseStats).map(stat => {
-                  const val = baseStats[stat];
-                  const bonus = getStatBonus(stat);
-                  const total = val + bonus;
-                  const mod = Math.floor((total - 10) / 2);
-                  return (
-                    <div key={stat} className="bg-[#fffdf8] border border-grimorio-gold-dark/30 p-3 rounded flex flex-col items-center justify-between">
-                      <span className="font-cinzel text-xs font-bold uppercase tracking-wider text-grimorio-gold-dark">
-                        {stat === 'str' ? 'Força' : stat === 'dex' ? 'Destreza' : stat === 'con' ? 'Constituição' : stat === 'int' ? 'Inteligência' : stat === 'wis' ? 'Sabedoria' : 'Carisma'}
-                      </span>
-                      
-                      <div className="flex items-center gap-3 my-2">
-                        <button 
-                          onClick={() => adjustStat(stat, -1)}
-                          className="w-6 h-6 border border-grimorio-gold-dark/50 bg-[#fff5df] font-bold rounded flex items-center justify-center hover:bg-grimorio-gold hover:text-white"
-                        >
-                          -
-                        </button>
-                        <span className="font-medieval text-xl font-bold text-grimorio-panel">{val}</span>
-                        <button 
-                          onClick={() => adjustStat(stat, 1)}
-                          className="w-6 h-6 border border-grimorio-gold-dark/50 bg-[#fff5df] font-bold rounded flex items-center justify-center hover:bg-grimorio-gold hover:text-white"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      <div className="text-xs font-garamond text-grimorio-panel/70 flex flex-col items-center">
-                        <span>Bônus Rácial: +{bonus}</span>
-                        <span className="font-bold text-grimorio-gold-dark">Total: {total} ({mod >= 0 ? `+${mod}` : mod})</span>
-                      </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {Object.keys(baseStats).map(stat=>(
+                  <div key={stat} className="bg-white border border-yellow-300 rounded p-3 flex flex-col items-center gap-2">
+                    <span className="font-cinzel text-xs font-bold text-yellow-800 uppercase">{STAT_NAMES[stat]}</span>
+                    <div className="flex items-center gap-3">
+                      <button onClick={()=>adjustStat(stat,-1)} className="w-7 h-7 rounded-full border border-yellow-400 bg-yellow-50 hover:bg-yellow-200 font-bold text-yellow-800">−</button>
+                      <span className="font-bold text-xl text-yellow-900 w-6 text-center">{baseStats[stat]}</span>
+                      <button onClick={()=>adjustStat(stat,1)} className="w-7 h-7 rounded-full border border-yellow-400 bg-yellow-50 hover:bg-yellow-200 font-bold text-yellow-800">+</button>
                     </div>
-                  );
-                })}
+                    {getBonus(stat)>0 && <span className="text-xs text-green-700">+{getBonus(stat)} racial</span>}
+                    <span className="font-bold text-yellow-700 text-sm">Total: {getTotal(stat)} <span className="text-xs">({getMod(stat)>=0?'+':''}{getMod(stat)})</span></span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* STEP 4: BACKGROUND & XANATHAR */}
-          {step === 4 && (
+          {/* STEP 4 - ANTECEDENTE */}
+          {step===4 && (
             <div>
-              <h2 className="font-cinzel text-2xl text-grimorio-gold-dark mb-2">Antecedente & História</h2>
-              <p className="font-garamond italic text-sm text-grimorio-panel/70 mb-6">O passado moldou quem você é. Sorteie eventos com o Guia do Xanathar.</p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                {Object.keys(BACKGROUNDS).map(bgKey => (
-                  <div 
-                    key={bgKey}
-                    onClick={() => setSelectedBackground(bgKey)}
-                    className={`p-4 border cursor-pointer rounded transition-all ${selectedBackground === bgKey ? 'bg-grimorio-gold/20 border-grimorio-gold shadow-md' : 'bg-[#fffcf4]/80 border-grimorio-gold-dark/30 hover:bg-[#fff9ea]'}`}
-                  >
-                    <h3 className="font-cinzel text-lg text-grimorio-gold-dark">{BACKGROUNDS[bgKey].name}</h3>
-                    <p className="text-xs font-garamond mt-1">Habilidade: {BACKGROUNDS[bgKey].feature}</p>
+              <h2 className="font-cinzel text-2xl text-yellow-800 mb-1">Antecedente & História</h2>
+              <p className="text-sm text-yellow-900/60 italic mb-6">Seu passado moldou quem você é.</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+                {Object.entries(BACKGROUNDS).map(([key,bg])=>(
+                  <div key={key} onClick={()=>setSelectedBackground(key)}
+                    className={`p-3 border rounded cursor-pointer transition-all ${selectedBackground===key?'bg-yellow-200 border-yellow-600 shadow-md':'bg-white/80 border-yellow-300/50 hover:bg-yellow-50'}`}>
+                    <h3 className="font-cinzel text-sm font-bold text-yellow-800">{bg.name}</h3>
+                    <p className="text-xs text-yellow-700/70 mt-1">{bg.feature}</p>
+                    <p className="text-xs text-yellow-700/50 mt-1">{bg.skills.join(' · ')}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Xanathar Event Roller */}
-              <div className="bg-[#1a1512] text-grimorio-parchment-light border border-grimorio-gold/30 p-5 rounded-md flex flex-col sm:flex-row items-center gap-4 mt-6">
-                <button 
-                  onClick={rollXanatharEvent}
-                  className="w-14 h-14 rounded-full border border-grimorio-gold bg-grimorio-panel hover:bg-grimorio-gold hover:text-grimorio-bg flex items-center justify-center shadow-rune-glow transition-all"
-                >
-                  <Dices className="w-7 h-7 text-grimorio-gold hover:text-grimorio-bg" />
+              <div className="bg-yellow-900 rounded border border-yellow-700/50 p-5 flex flex-col sm:flex-row items-center gap-4">
+                <button onClick={()=>setXanatharStory(XANATHAR_EVENTS[Math.floor(Math.random()*XANATHAR_EVENTS.length)])}
+                  className="w-14 h-14 rounded-full border-2 border-yellow-500 flex items-center justify-center hover:bg-yellow-700 transition-all shrink-0">
+                  <Dices className="w-7 h-7 text-yellow-400"/>
                 </button>
-                <div className="flex-grow">
-                  <h4 className="font-cinzel text-xs text-grimorio-gold uppercase tracking-wider mb-1">Acontecimento de Vida (XGtE)</h4>
-                  <p className="font-garamond italic text-sm leading-relaxed text-grimorio-parchment-light/80">
-                    "{xanatharStory}"
-                  </p>
+                <div>
+                  <p className="font-cinzel text-xs text-yellow-500 uppercase mb-1">Evento de Vida — Guia do Xanathar</p>
+                  <p className="text-sm text-yellow-100/80 italic">{xanatharStory || 'Clique no dado para sortear seu passado...'}</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* STEP 5: SPELLS & EQUIPMENT */}
-          {step === 5 && (
+          {/* STEP 5 - FINALIZAR */}
+          {step===5 && (
             <div>
-              <h2 className="font-cinzel text-2xl text-grimorio-gold-dark mb-2">Preparação & Magias</h2>
-              <p className="font-garamond italic text-sm text-grimorio-panel/70 mb-6">
-                {CLASSES[selectedClass].spellcasting ? 'Selecione seus Truques e Magias de Primeiro Círculo.' : 'Seus recursos físicos e equipamentos iniciais estão prontos.'}
-              </p>
-
-              {CLASSES[selectedClass].spellcasting ? (
-                <div className="space-y-6">
-                  {/* Cantrips selection */}
-                  <div>
-                    <h4 className="font-cinzel text-sm text-grimorio-gold-dark mb-2">
-                      Escolha Truques (Selecione {CLASSES[selectedClass].spellcasting.cantripsSelected - cantrips.length} restantes)
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {CLASSES[selectedClass].spellcasting.cantrips.map(c => {
-                        const isSel = cantrips.includes(c);
-                        return (
-                          <button
-                            key={c}
-                            onClick={() => handleSpellToggle(c, true)}
-                            className={`px-3 py-1.5 border rounded text-xs font-cinzel transition-all ${isSel ? 'bg-grimorio-gold text-grimorio-bg border-grimorio-gold' : 'bg-[#fffcf4]/60 border-grimorio-gold-dark/30 hover:bg-[#fff9ea]'}`}
-                          >
-                            {c}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Level 1 spells selection */}
-                  <div>
-                    <h4 className="font-cinzel text-sm text-grimorio-gold-dark mb-2">
-                      Escolha Magias de 1º Nível (Selecione {CLASSES[selectedClass].spellcasting.spellsSelected - spells.length} restantes)
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {CLASSES[selectedClass].spellcasting.level1Spells.map(s => {
-                        const isSel = spells.includes(s);
-                        return (
-                          <button
-                            key={s}
-                            onClick={() => handleSpellToggle(s, false)}
-                            className={`px-3 py-1.5 border rounded text-xs font-cinzel transition-all ${isSel ? 'bg-grimorio-gold text-grimorio-bg border-grimorio-gold' : 'bg-[#fffcf4]/60 border-grimorio-gold-dark/30 hover:bg-[#fff9ea]'}`}
-                          >
-                            {s}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-[#fff9ea]/50 border border-grimorio-gold-dark/20 p-6 rounded-md">
-                  <h4 className="font-cinzel text-base text-grimorio-gold-dark mb-2">Equipamento Inicial de Classe</h4>
-                  <ul className="list-disc list-inside font-garamond text-sm leading-relaxed space-y-1.5">
-                    <li>Cota de Malha Pesada (CA 16)</li>
-                    <li>Espada Longa (+5 para atingir, 1d8 cortante)</li>
-                    <li>Escudo de Carvalho Revestido de Ferro (+2 CA)</li>
-                    <li>Pacote de Masmorra (tochas, rações, corda, pederneira)</li>
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* STEP 6: SUMMARY & FINISH */}
-          {step === 6 && (
-            <div>
-              <h2 className="font-cinzel text-2xl text-grimorio-gold-dark mb-2">Finalização do Grimório</h2>
-              <p className="font-garamond italic text-sm text-grimorio-panel/70 mb-6">Nomeie seu personagem e selecione um retrato para selar o pacto.</p>
-
+              <h2 className="font-cinzel text-2xl text-yellow-800 mb-1">Selar o Grimório</h2>
+              <p className="text-sm text-yellow-900/60 italic mb-6">Dê um nome ao seu herói para gravar sua história.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-cinzel text-grimorio-gold-dark mb-1">Nome do Personagem:</label>
-                    <input 
-                      type="text" 
-                      value={charName} 
-                      onChange={(e) => setCharName(e.target.value)} 
-                      placeholder="Ex: Aldaron Hérion"
-                      className="w-full text-sm p-2 bg-[#fcf8ef] border border-grimorio-gold-dark/40 rounded font-garamond outline-none focus:border-grimorio-gold"
-                    />
+                    <label className="block text-xs font-cinzel text-yellow-800 mb-1">Nome do Personagem *</label>
+                    <input value={charName} onChange={e=>setCharName(e.target.value)} placeholder="Ex: Aldaron Hérion"
+                      className="w-full p-3 border border-yellow-400 rounded bg-yellow-50 font-cinzel text-yellow-900 outline-none focus:border-yellow-600"/>
                   </div>
                   <div>
-                    <label className="block text-xs font-cinzel text-grimorio-gold-dark mb-1">URL da Imagem do Retrato (Opcional):</label>
-                    <input 
-                      type="text" 
-                      value={portraitUrl} 
-                      onChange={(e) => setPortraitUrl(e.target.value)} 
-                      placeholder="https://exemplo.com/retrato.jpg"
-                      className="w-full text-xs p-2 bg-[#fcf8ef] border border-grimorio-gold-dark/40 rounded font-garamond outline-none focus:border-grimorio-gold"
-                    />
+                    <label className="block text-xs font-cinzel text-yellow-800 mb-1">URL do Retrato (opcional)</label>
+                    <input value={portraitUrl} onChange={e=>setPortraitUrl(e.target.value)} placeholder="https://..."
+                      className="w-full p-3 border border-yellow-400 rounded bg-yellow-50 text-xs text-yellow-900 outline-none focus:border-yellow-600"/>
                   </div>
                 </div>
-
-                <div className="border border-grimorio-gold-dark/20 p-4 rounded bg-[#fff9ea]/50 flex flex-col justify-between text-xs font-cinzel tracking-wider text-grimorio-gold-dark/80">
-                  <h4 className="font-bold border-b border-grimorio-gold-dark/15 pb-1 mb-2 text-center text-sm uppercase">Revisão Rápida</h4>
-                  <div className="space-y-1.5">
-                    <div>Linhagem: <span className="font-bold text-grimorio-panel">{RACES[selectedRace].name} {selectedSubrace ? `(${RACES[selectedRace].subraces[selectedSubrace].name})` : ''}</span></div>
-                    <div>Vocação: <span className="font-bold text-grimorio-panel">{CLASSES[selectedClass].name}</span></div>
-                    <div>Atributos base: <span className="font-bold text-grimorio-panel">{Object.keys(baseStats).map(s => `${s.toUpperCase()}:${getTotalStat(s)}`).join(' | ')}</span></div>
-                    <div>Antecedente: <span className="font-bold text-grimorio-panel">{BACKGROUNDS[selectedBackground].name}</span></div>
-                  </div>
+                <div className="bg-yellow-800 rounded p-5 text-yellow-100 space-y-2 text-sm font-cinzel">
+                  <h4 className="text-yellow-400 uppercase text-xs tracking-widest mb-3">Revisão Final</h4>
+                  <p>Raça: <strong>{selectedRace?.name}</strong></p>
+                  <p>Classe: <strong>{selectedClass?.name}</strong></p>
+                  <p>Antecedente: <strong>{BACKGROUNDS[selectedBackground].name}</strong></p>
+                  <p>FOR {getTotal('str')} · DEX {getTotal('dex')} · CON {getTotal('con')}</p>
+                  <p>INT {getTotal('int')} · SAB {getTotal('wis')} · CAR {getTotal('cha')}</p>
+                  <p>HP Inicial: <strong>{8+getMod('con')}</strong></p>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer Navigation */}
-        <div className="flex items-center justify-between border-t border-grimorio-gold-dark/20 pt-4 mt-8">
-          <button 
-            onClick={handlePrevStep}
-            disabled={step === 1}
-            className="rune-button flex items-center gap-1.5 text-xs"
-            style={{ backgroundColor: '#1c140e', color: '#f2e6cf' }}
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Anterior
+        {/* Footer */}
+        <div className="bg-[#14100d] border-t border-yellow-900/40 px-6 py-4 flex items-center justify-between">
+          <button onClick={()=>step>1&&setStep(p=>p-1)} disabled={step===1}
+            className="flex items-center gap-2 px-4 py-2 rounded border border-yellow-800/50 text-yellow-700 font-cinzel text-xs disabled:opacity-30 hover:bg-yellow-900/30 transition-all">
+            <ArrowLeft className="w-4 h-4"/> Anterior
           </button>
-          
-          <button 
-            onClick={handleNextStep}
-            className="rune-button flex items-center gap-1.5 text-xs"
-            style={{ backgroundColor: '#1c140e', color: '#f2e6cf' }}
-          >
-            {step === 6 ? 'Gravar Ficha' : 'Próximo'}
-            <ArrowRight className="w-3.5 h-3.5" />
+          <span className="font-cinzel text-xs text-yellow-800">{step} / {STEPS.length}</span>
+          <button onClick={next}
+            className="flex items-center gap-2 px-5 py-2 rounded bg-yellow-700 text-yellow-100 font-cinzel text-xs hover:bg-yellow-600 transition-all">
+            {step===5?'Gravar Ficha':'Próximo'} <ArrowRight className="w-4 h-4"/>
           </button>
         </div>
       </div>
