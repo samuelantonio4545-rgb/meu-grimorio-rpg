@@ -129,3 +129,34 @@ app.listen(PORT, () => {
   console.log(`O Grimório está aberto na porta ${PORT}`);
   console.log(`Acesse http://localhost:${PORT}/api/health para verificar a saúde.`);
 });
+const axios = require('axios');
+
+// Busca todas as classes
+app.get('/api/classes', async (req, res) => {
+  const { data } = await axios.get('https://www.dnd5eapi.co/api/classes');
+  res.json(data);
+});
+
+// Busca detalhes de uma classe específica
+app.get('/api/classes/:index', async (req, res) => {
+  const { data } = await axios.get(`https://www.dnd5eapi.co/api/classes/${req.params.index}`);
+  res.json(data);
+});
+
+// Busca todas as raças
+app.get('/api/races', async (req, res) => {
+  const { data } = await axios.get('https://www.dnd5eapi.co/api/races');
+  res.json(data);
+});
+
+// Busca todos os feitiços
+app.get('/api/spells', async (req, res) => {
+  const { data } = await axios.get('https://www.dnd5eapi.co/api/spells');
+  res.json(data);
+});
+
+// Busca monstros
+app.get('/api/monsters', async (req, res) => {
+  const { data } = await axios.get('https://www.dnd5eapi.co/api/monsters');
+  res.json(data);
+});
